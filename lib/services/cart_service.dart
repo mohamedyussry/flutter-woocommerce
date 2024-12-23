@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/cart_item.dart';
+import '../models/cart_item.dart' as models;
 import '../models/product.dart';
 import 'auth_service.dart';
 import 'order_service.dart';
@@ -11,8 +11,8 @@ class CartService {
   factory CartService() => _instance;
   CartService._internal();
 
-  final _items = ValueNotifier<List<CartItem>>([]);
-  ValueListenable<List<CartItem>> get items => _items;
+  final _items = ValueNotifier<List<models.CartItem>>([]);
+  ValueListenable<List<models.CartItem>> get items => _items;
 
   final _itemCount = ValueNotifier<int>(0);
   ValueListenable<int> get cartItemCount => _itemCount;
@@ -27,7 +27,7 @@ class CartService {
     );
     _totalAmount.value = _items.value.fold<double>(
       0,
-      (sum, item) => sum + (item.product.price * item.quantity),
+      (sum, item) => sum + (double.tryParse(item.product.price) ?? 0.0) * item.quantity,
     );
   }
 
@@ -39,7 +39,7 @@ class CartService {
     final cartJson = prefs.getString('cart_$userId');
     if (cartJson != null) {
       final List<dynamic> cartList = json.decode(cartJson);
-      _items.value = cartList.map((json) => CartItem.fromJson(json)).toList();
+      _items.value = cartList.map((json) => models.CartItem.fromJson(json)).toList();
       _updateCountAndTotal();
     }
   }
@@ -55,12 +55,12 @@ class CartService {
 
   void addItem(Product product, [int quantity = 1]) {
     final existingIndex = _items.value.indexWhere(
-      (item) => item.product.id == product.id,
+      (item) => item.product.id.toString() == product.id.toString(),
     );
 
     if (existingIndex != -1) {
-      final newItems = List<CartItem>.from(_items.value);
-      newItems[existingIndex] = CartItem(
+      final newItems = List<models.CartItem>.from(_items.value);
+      newItems[existingIndex] = models.CartItem(
         product: product,
         quantity: newItems[existingIndex].quantity + quantity,
       );
@@ -68,7 +68,7 @@ class CartService {
     } else {
       _items.value = [
         ..._items.value,
-        CartItem(product: product, quantity: quantity),
+        models.CartItem(product: product, quantity: quantity),
       ];
     }
 
@@ -78,29 +78,29 @@ class CartService {
 
   void removeItem(String productId) {
     _items.value = _items.value
-        .where((item) => item.product.id != productId)
+        .where((item) => item.product.id.toString() != productId)
         .toList();
     _updateCountAndTotal();
     saveCart();
   }
 
   void updateQuantity(String productId, int quantity) {
-    if (quantity <= 0) {
-      removeItem(productId);
-      return;
-    }
-
-    final itemIndex = _items.value.indexWhere(
-      (item) => item.product.id == productId,
+    final existingIndex = _items.value.indexWhere(
+      (item) => item.product.id.toString() == productId,
     );
 
-    if (itemIndex != -1) {
-      final newItems = List<CartItem>.from(_items.value);
-      newItems[itemIndex] = CartItem(
-        product: newItems[itemIndex].product,
-        quantity: quantity,
-      );
-      _items.value = newItems;
+    if (existingIndex != -1) {
+      final newItems = List<models.CartItem>.from(_items.value);
+      if (quantity > 0) {
+        newItems[existingIndex] = models.CartItem(
+          product: newItems[existingIndex].product,
+          quantity: quantity,
+        );
+        _items.value = newItems;
+      } else {
+        newItems.removeAt(existingIndex);
+        _items.value = newItems;
+      }
       _updateCountAndTotal();
       saveCart();
     }

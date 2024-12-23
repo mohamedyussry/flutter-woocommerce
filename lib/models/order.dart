@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'cart_item.dart';
+import 'package:flutter/foundation.dart';
+import '../models/cart_item.dart' as models;
 
 enum OrderStatus {
   pending,    // قيد الانتظار
@@ -12,7 +13,7 @@ enum OrderStatus {
 class Order {
   final String id;
   final String userId;
-  final List<CartItem> items;
+  final List<models.CartItem> items;
   final double total;
   final OrderStatus status;
   final DateTime createdAt;
@@ -34,11 +35,9 @@ class Order {
     return Order(
       id: json['id'] as String,
       userId: json['userId'] as String,
-      items: (json['items'] as List).map((item) => CartItem.fromJson(item)).toList(),
+      items: (json['items'] as List).map((item) => models.CartItem.fromJson(item)).toList(),
       total: json['total'] as double,
-      status: OrderStatus.values.firstWhere(
-        (e) => e.toString() == json['status'],
-      ),
+      status: OrderStatus.values[json['status'] as int],
       createdAt: DateTime.parse(json['createdAt'] as String),
       trackingNumber: json['trackingNumber'] as String?,
       shippingAddress: json['shippingAddress'] as String,
@@ -51,7 +50,7 @@ class Order {
       'userId': userId,
       'items': items.map((item) => item.toJson()).toList(),
       'total': total,
-      'status': status.toString(),
+      'status': status.index,
       'createdAt': createdAt.toIso8601String(),
       'trackingNumber': trackingNumber,
       'shippingAddress': shippingAddress,

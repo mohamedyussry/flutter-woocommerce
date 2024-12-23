@@ -17,25 +17,21 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
       salePrice: json['sale_price'] == null
           ? ''
           : Product._priceFromJson(json['sale_price']),
+      price: json['price'] == null ? '' : Product._priceFromJson(json['price']),
       onSale: json['on_sale'] as bool? ?? false,
       featured: json['featured'] as bool? ?? false,
       stockStatus: json['stock_status'] as String? ?? 'instock',
-      images: (json['images'] as List<dynamic>?)
-              ?.map((e) => ProductImage.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      categories: (json['categories'] as List<dynamic>?)
-              ?.map((e) => ProductCategory.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      attributes: (json['attributes'] as List<dynamic>?)
-              ?.map((e) => ProductAttribute.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      variations: (json['variations'] as List<dynamic>?)
-              ?.map((e) => ProductVariation.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      images:
+          json['images'] == null ? [] : Product._imagesFromJson(json['images']),
+      categories: json['categories'] == null
+          ? []
+          : Product._categoriesFromJson(json['categories']),
+      attributes: json['attributes'] == null
+          ? []
+          : Product._attributesFromJson(json['attributes']),
+      variations: json['variations'] == null
+          ? []
+          : Product._variationsFromJson(json['variations']),
       dateCreated: json['date_created'] as String? ?? '',
       averageRating: json['average_rating'] as String? ?? '0',
       ratingCount: (json['rating_count'] as num?)?.toInt() ?? 0,
@@ -48,6 +44,7 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
       'short_description': instance.shortDescription,
       'regular_price': instance.regularPrice,
       'sale_price': instance.salePrice,
+      'price': instance.price,
       'on_sale': instance.onSale,
       'featured': instance.featured,
       'stock_status': instance.stockStatus,

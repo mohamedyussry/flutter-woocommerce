@@ -8,6 +8,10 @@ import '../widgets/category_list.dart';
 import '../widgets/featured_products.dart';
 import '../widgets/new_products.dart';
 import '../widgets/category_slider.dart';
+import 'category_products_screen.dart';
+import 'cart_screen.dart';
+import '../services/cart_service.dart';
+import '../models/cart_item.dart' as models;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  final CartService _cartService = CartService();
 
   @override
   void initState() {
@@ -26,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductsProvider>().fetchProducts();
       context.read<CategoriesProvider>().fetchCategories();
+      _cartService.loadCart();
     });
   }
 
@@ -56,6 +62,29 @@ class _HomeScreenState extends State<HomeScreen> {
               floating: true,
               title: const Text('Nature Republic'),
               centerTitle: true,
+              leading: Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      builder: (context) => DraggableScrollableSheet(
+                        initialChildSize: 0.6,
+                        minChildSize: 0.3,
+                        maxChildSize: 0.9,
+                        expand: false,
+                        builder: (context, scrollController) => CategoryList(
+                          scrollController: scrollController,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.search),
@@ -63,203 +92,60 @@ class _HomeScreenState extends State<HomeScreen> {
                     // TODO: Implement search
                   },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.shopping_cart),
-                  onPressed: () {
-                    // TODO: Navigate to cart
-                  },
-                ),
-              ],
-            ),
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const CategorySlider(),
-                  const SizedBox(height: 16),
-                  const CategoryList(),
-                  const SizedBox(height: 16),
-                  const FeaturedProducts(),
-                  const SizedBox(height: 16),
-                  const NewProducts(),
-                ],
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: Consumer<ProductsProvider>(
-                builder: (context, provider, child) {
-                  if (provider.isLoading && provider.products.isEmpty) {
-                    return const SliverFillRemaining(
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  if (provider.error != null && provider.products.isEmpty) {
-                    return SliverFillRemaining(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              provider.error!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () {
-                                provider.refreshProducts();
-                              },
-                              child: const Text('إعادة المحاولة'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  return SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.7,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shopping_cart),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CartScreen(),
+                          ),
+                        );
+                      },
                     ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        if (index >= provider.products.length) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-
-                        final product = provider.products[index];
-                        return InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ProductDetailsScreen(
-                                  product: product,
-                                ),
+                    ValueListenableBuilder<List<models.CartItem>>(
+                      valueListenable: _cartService.items,
+                      builder: (context, items, child) {
+                        if (items.isEmpty) return const SizedBox.shrink();
+                        return Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.error,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              items.length.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
                               ),
-                            );
-                          },
-                          child: Card(
-                            clipBehavior: Clip.antiAlias,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      if (product.images.isNotEmpty)
-                                        Hero(
-                                          tag: 'product_${product.id}_all',
-                                          child: Image.network(
-                                            product.images.first.src,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      if (product.onSale)
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .error,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              'خصم ${_calculateDiscount(product)}%',
-                                              style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onError,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          product.name,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        if (product.onSale) ...[
-                                          Text(
-                                            'AED ${product.salePrice}',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Text(
-                                            'AED ${product.regularPrice}',
-                                            style: const TextStyle(
-                                              decoration:
-                                                  TextDecoration.lineThrough,
-                                              color: Colors.grey,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ] else
-                                          Text(
-                                            'AED ${product.regularPrice}',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              textAlign: TextAlign.center,
                             ),
                           ),
                         );
                       },
-                      childCount:
-                          provider.products.length + (provider.isLoading ? 1 : 0),
                     ),
-                  );
-                },
-              ),
+                  ],
+                ),
+              ],
+            ),
+            const SliverToBoxAdapter(
+              child: CategorySlider(),
+            ),
+            const SliverToBoxAdapter(
+              child: FeaturedProducts(),
+            ),
+            const SliverToBoxAdapter(
+              child: NewProducts(),
             ),
           ],
         ),

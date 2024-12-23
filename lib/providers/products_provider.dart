@@ -43,6 +43,7 @@ class ProductsProvider with ChangeNotifier {
       if (!_hasMore || _isLoading) return;
 
       _isLoading = true;
+      _error = null;
       notifyListeners();
 
       debugPrint('🔄 Fetching products - Page: $_currentPage, Category: $_currentCategoryId');
@@ -55,16 +56,20 @@ class ProductsProvider with ChangeNotifier {
 
       if (newProducts.isEmpty) {
         _hasMore = false;
+        debugPrint('📦 No more products to load');
       } else {
         _products.addAll(newProducts);
         _currentPage++;
+        debugPrint('✅ Loaded ${newProducts.length} products. Total: ${_products.length}');
       }
 
       _isLoading = false;
       notifyListeners();
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('❌ Error fetching products: $e');
+      debugPrint('📋 Stack trace: $stack');
       _isLoading = false;
-      setError('فشل في تحميل المنتجات: $e');
+      setError('فشل في تحميل المنتجات. الرجاء المحاولة مرة أخرى.');
     }
   }
 

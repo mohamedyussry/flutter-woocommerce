@@ -1,52 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../screens/category_products_screen.dart';
 import '../providers/categories_provider.dart';
-import '../models/category.dart';
+import '../screens/category_products_screen.dart';
 
 class CategoryList extends StatelessWidget {
-  const CategoryList({super.key});
+  final ScrollController scrollController;
 
-  Color _getCategoryColor(int index) {
-    final colors = [
-      Colors.pink,
-      Colors.purple,
-      Colors.orange,
-      Colors.green,
-      Colors.blue,
-      Colors.brown,
-    ];
-    return colors[index % colors.length];
-  }
-
-  IconData _getCategoryIcon(int index) {
-    final icons = [
-      Icons.face_retouching_natural,
-      Icons.cut,
-      Icons.brush,
-      Icons.spa,
-      Icons.accessibility_new,
-      Icons.man,
-    ];
-    return icons[index % icons.length];
-  }
+  const CategoryList({
+    super.key,
+    required this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Consumer<CategoriesProvider>(
-      builder: (context, categoriesProvider, child) {
-        if (categoriesProvider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
         }
 
-        if (categoriesProvider.error != null) {
+        if (provider.error != null) {
           return Center(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(categoriesProvider.error!),
+                Text(
+                  provider.error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => categoriesProvider.fetchCategories(),
+                  onPressed: () {
+                    provider.fetchCategories();
+                  },
                   child: const Text('إعادة المحاولة'),
                 ),
               ],
@@ -54,76 +46,42 @@ class CategoryList extends StatelessWidget {
           );
         }
 
-        final categories = categoriesProvider.categories;
-        
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'الفئات',
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: const Text(
+                'الأقسام',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            SizedBox(
-              height: 120,
+            Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                scrollDirection: Axis.horizontal,
-                itemCount: categories.length,
+                controller: scrollController,
+                itemCount: provider.categories.length,
                 itemBuilder: (context, index) {
-                  final category = categories[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CategoryProductsScreen(
-                              categoryId: category.id,
-                              categoryName: category.name,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: _getCategoryColor(index).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: category.image != null
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Image.network(
-                                      category.image!,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : Icon(
-                                    _getCategoryIcon(index),
-                                    color: _getCategoryColor(index),
-                                    size: 32,
-                                  ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            category.name,
-                            style: const TextStyle(fontSize: 12),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+                  final category = provider.categories[index];
+                  return ListTile(
+                    title: Text(
+                      category.name,
+                      style: const TextStyle(fontSize: 16),
                     ),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CategoryProductsScreen(
+                            categoryId: category.id,
+                            categoryName: category.name,
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),

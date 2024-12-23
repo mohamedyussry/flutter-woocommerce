@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/product.dart';
+import '../services/cart_service.dart';
+import '../models/cart_item.dart';
 
 class AddToCartButton extends StatefulWidget {
   final Product product;
@@ -15,6 +17,7 @@ class AddToCartButton extends StatefulWidget {
 
 class _AddToCartButtonState extends State<AddToCartButton> {
   int _quantity = 1;
+  final CartService _cartService = CartService();
 
   void _incrementQuantity() {
     setState(() {
@@ -31,11 +34,17 @@ class _AddToCartButtonState extends State<AddToCartButton> {
   }
 
   void _addToCart() {
-    // TODO: Implement add to cart functionality
+    _cartService.addItem(widget.product, _quantity);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تمت إضافة المنتج إلى السلة'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text('تمت إضافة ${widget.product.name} إلى السلة'),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'عرض السلة',
+          onPressed: () {
+            Navigator.pushNamed(context, '/cart');
+          },
+        ),
       ),
     );
   }
@@ -70,12 +79,26 @@ class _AddToCartButtonState extends State<AddToCartButton> {
                 ),
               ],
             ),
-            Text(
-              'المجموع: ${(double.parse(widget.product.regularPrice) * _quantity).toStringAsFixed(2)} درهم',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            ValueListenableBuilder<List<CartItem>>(
+              valueListenable: _cartService.items,
+              builder: (context, items, child) {
+                final isInCart = items.any((item) => item.product.id.toString() == widget.product.id.toString());
+                return ElevatedButton(
+                  onPressed: isInCart ? null : _addToCart,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
+                  child: Text(
+                    isInCart ? 'في السلة' : 'إضافة للسلة',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),

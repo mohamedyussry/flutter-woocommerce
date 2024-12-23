@@ -4,7 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
 import 'providers/products_provider.dart';
 import 'providers/categories_provider.dart';
@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: const HomeScreen(),
+        home: const MainScreen(),
       ),
     );
   }

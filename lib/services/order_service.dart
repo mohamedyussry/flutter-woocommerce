@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/cart_item.dart' as models;
 import '../models/order.dart';
-import '../models/cart_item.dart';
 import 'auth_service.dart';
 
 class OrderService {
@@ -35,7 +35,7 @@ class OrderService {
   }
 
   Future<Order> createOrder({
-    required List<CartItem> items,
+    required List<models.CartItem> items,
     required double total,
     required String shippingAddress,
   }) async {

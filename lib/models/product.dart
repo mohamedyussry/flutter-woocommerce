@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'product.g.dart';
@@ -19,6 +20,9 @@ class Product {
   @JsonKey(name: 'sale_price', fromJson: _priceFromJson, defaultValue: '')
   final String salePrice;
   
+  @JsonKey(name: 'price', fromJson: _priceFromJson, defaultValue: '')
+  final String price;
+  
   @JsonKey(name: 'on_sale', defaultValue: false)
   final bool onSale;
   
@@ -28,16 +32,16 @@ class Product {
   @JsonKey(name: 'stock_status', defaultValue: 'instock')
   final String stockStatus;
   
-  @JsonKey(defaultValue: [])
+  @JsonKey(name: 'images', fromJson: _imagesFromJson, defaultValue: [])
   final List<ProductImage> images;
   
-  @JsonKey(defaultValue: [])
+  @JsonKey(name: 'categories', fromJson: _categoriesFromJson, defaultValue: [])
   final List<ProductCategory> categories;
   
-  @JsonKey(defaultValue: [])
+  @JsonKey(name: 'attributes', fromJson: _attributesFromJson, defaultValue: [])
   final List<ProductAttribute> attributes;
   
-  @JsonKey(defaultValue: [])
+  @JsonKey(name: 'variations', fromJson: _variationsFromJson, defaultValue: [])
   final List<ProductVariation> variations;
   
   @JsonKey(name: 'date_created', defaultValue: '')
@@ -52,20 +56,21 @@ class Product {
   Product({
     required this.id,
     required this.name,
-    this.slug = '',
-    this.shortDescription = '',
-    this.regularPrice = '',
-    this.salePrice = '',
-    this.onSale = false,
-    this.featured = false,
-    this.stockStatus = 'instock',
-    this.images = const [],
-    this.categories = const [],
-    this.attributes = const [],
-    this.variations = const [],
-    this.dateCreated = '',
-    this.averageRating = '0',
-    this.ratingCount = 0,
+    required this.slug,
+    required this.shortDescription,
+    required this.regularPrice,
+    required this.salePrice,
+    required this.price,
+    required this.onSale,
+    required this.featured,
+    required this.stockStatus,
+    required this.images,
+    required this.categories,
+    required this.attributes,
+    required this.variations,
+    required this.dateCreated,
+    required this.averageRating,
+    required this.ratingCount,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
@@ -73,20 +78,90 @@ class Product {
 
   static String _priceFromJson(dynamic value) {
     if (value == null) return '';
-    if (value is String) return value;
-    if (value is num) return value.toString();
-    return '';
+    if (value is String && value.isEmpty) return '';
+    return value.toString().replaceAll(RegExp(r'[^\d.]'), '');
+  }
+
+  static List<ProductImage> _imagesFromJson(dynamic value) {
+    if (value == null) return [];
+    if (value is! List) return [];
+    try {
+      return value
+          .map((e) => ProductImage.fromJson(e as Map<String, dynamic>))
+          .where((image) => image.src.isNotEmpty)
+          .toList();
+    } catch (e) {
+      print('Error parsing images: $e');
+      return [];
+    }
+  }
+
+  static List<ProductCategory> _categoriesFromJson(dynamic value) {
+    if (value == null) return [];
+    if (value is! List) return [];
+    try {
+      return value
+          .map((e) => ProductCategory.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('Error parsing categories: $e');
+      return [];
+    }
+  }
+
+  static List<ProductAttribute> _attributesFromJson(dynamic value) {
+    if (value == null) return [];
+    if (value is! List) return [];
+    try {
+      return value
+          .map((e) => ProductAttribute.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('Error parsing attributes: $e');
+      return [];
+    }
+  }
+
+  static List<ProductVariation> _variationsFromJson(dynamic value) {
+    if (value == null) return [];
+    if (value is! List) return [];
+    try {
+      return value
+          .map((e) => ProductVariation.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('Error parsing variations: $e');
+      return [];
+    }
+  }
+
+  bool get isInStock => stockStatus.toLowerCase() == 'instock';
+
+  String get mainImage {
+    if (images.isEmpty) return '';
+    return images.first.src;
+  }
+
+  String get displayPrice {
+    if (onSale && salePrice.isNotEmpty) {
+      return salePrice;
+    }
+    return regularPrice.isNotEmpty ? regularPrice : price;
   }
 }
 
 @JsonSerializable()
 class ProductImage {
+  @JsonKey(name: 'id')
   final int id;
-  
+
   @JsonKey(name: 'src', fromJson: _srcFromJson)
   final String src;
-  
+
+  @JsonKey(name: 'name', defaultValue: '')
   final String name;
+
+  @JsonKey(name: 'alt', defaultValue: '')
   final String alt;
 
   ProductImage({
@@ -96,16 +171,13 @@ class ProductImage {
     required this.alt,
   });
 
-  factory ProductImage.fromJson(Map<String, dynamic> json) =>
-      _$ProductImageFromJson(json);
+  factory ProductImage.fromJson(Map<String, dynamic> json) => _$ProductImageFromJson(json);
   Map<String, dynamic> toJson() => _$ProductImageToJson(this);
-      
+
   static String _srcFromJson(dynamic value) {
-    if (value == null || value.toString().isEmpty) return '';
-    String url = value.toString();
-    url = url.replaceAll(r'\\/', '/').replaceAll(r'\/', '/');
-    if (url.startsWith('http')) {
-      return url;
+    if (value == null) return '';
+    if (value is String) {
+      return value.replaceAll(r'\\', '/');
     }
     return '';
   }

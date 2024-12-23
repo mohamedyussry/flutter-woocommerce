@@ -53,10 +53,11 @@ class WooCommerceService {
           debugPrint('📊 List length: ${decodedJson.length}');
           if (decodedJson.isNotEmpty) {
             debugPrint('📊 First item type: ${decodedJson.first.runtimeType}');
-            debugPrint('📊 First item: ${json.encode(decodedJson.first)}');
+            final firstItem = decodedJson.first;
+            if (firstItem is Map<String, dynamic>) {
+              debugPrint('📊 Image URLs in first item: ${firstItem['images']?.map((img) => img['src'])}');
+            }
           }
-        } else {
-          debugPrint('📊 Response is not a List: $decodedJson');
         }
 
         try {
@@ -106,17 +107,20 @@ class WooCommerceService {
     return _get<List<Product>>(
       '/products',
       queryParameters,
-      (json) {
-        if (json is! List) {
-          throw Exception('Expected List but got ${json.runtimeType}');
-        }
-        return json.map((item) {
-          if (item is! Map<String, dynamic>) {
-            throw Exception('Expected Map<String, dynamic> but got ${item.runtimeType}');
+      (json) => (json as List).map((item) {
+        try {
+          final product = Product.fromJson(item as Map<String, dynamic>);
+          debugPrint('✅ Successfully parsed product: ${product.id} - ${product.name}');
+          if (product.images.isNotEmpty) {
+            debugPrint('🖼️ First image URL: ${product.images.first.src}');
           }
-          return Product.fromJson(item);
-        }).toList();
-      },
+          return product;
+        } catch (e, stack) {
+          debugPrint('❌ Error parsing product: $e');
+          debugPrint('📋 Stack trace: $stack');
+          rethrow;
+        }
+      }).toList(),
     );
   }
 
