@@ -23,14 +23,18 @@ class WooCommerceService {
   }
 
   Uri _buildUri(String endpoint, Map<String, dynamic> queryParameters) {
-    final uri = Uri.parse('$_baseUrl/wp-json/wc/v3$endpoint');
+    final baseUrl = _baseUrl.endsWith('/') ? _baseUrl.substring(0, _baseUrl.length - 1) : _baseUrl;
+    final uri = Uri.parse('$baseUrl/wp-json/wc/v3$endpoint');
     final Map<String, dynamic> params = {
       'consumer_key': _consumerKey,
       'consumer_secret': _consumerSecret,
       ...queryParameters,
     };
 
-    return uri.replace(queryParameters: params.map((key, value) => MapEntry(key, value.toString())));
+    debugPrint('🔗 Building URI for endpoint: $endpoint');
+    final finalUri = uri.replace(queryParameters: params.map((key, value) => MapEntry(key, value.toString())));
+    debugPrint('🌐 Final URI: $finalUri');
+    return finalUri;
   }
 
   Future<T> _get<T>(
@@ -40,41 +44,18 @@ class WooCommerceService {
   ) async {
     try {
       final uri = _buildUri(endpoint, queryParameters);
-      debugPrint('🌐 Making GET request to: $uri');
 
       final response = await _client.get(uri).timeout(const Duration(seconds: 30));
+      debugPrint('📥 Response status code: ${response.statusCode}');
+      debugPrint('📦 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final decodedJson = json.decode(response.body);
-
-        debugPrint('📊 Response type: ${decodedJson.runtimeType}');
-
-        if (decodedJson is List) {
-          debugPrint('📊 List length: ${decodedJson.length}');
-          if (decodedJson.isNotEmpty) {
-            debugPrint('📊 First item type: ${decodedJson.first.runtimeType}');
-            final firstItem = decodedJson.first;
-            if (firstItem is Map<String, dynamic>) {
-              debugPrint('📊 Image URLs in first item: ${firstItem['images']?.map((img) => img['src'])}');
-            }
-          }
-        }
-
-        try {
-          return parser(decodedJson);
-        } catch (e, stack) {
-          debugPrint('❌ Error parsing data: $e');
-          debugPrint('📋 Stack trace: $stack');
-          rethrow;
-        }
-      } else {
-        debugPrint('❌ Error Response Body: ${response.body}');
-        throw Exception('Failed to load data: ${response.statusCode} - ${response.body}');
+        return parser(decodedJson);
       }
-    } on TimeoutException {
-      throw Exception('Request timed out');
-    } on SocketException {
-      throw Exception('No internet connection');
+
+      debugPrint('❌ Error Response Body: ${response.body}');
+      throw Exception('Failed to load data: ${response.statusCode} - ${response.body}');
     } catch (e) {
       debugPrint('❌ Error in _get: $e');
       rethrow;
@@ -122,6 +103,165 @@ class WooCommerceService {
         }
       }).toList(),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> getPaymentGateways() async {
+    try {
+      debugPrint('🔄 Fetching payment gateways...');
+      final uri = Uri.parse('${_baseUrl}wp-json/wc/v3/payment_gateways').replace(
+        queryParameters: {
+          'consumer_key': _consumerKey,
+          'consumer_secret': _consumerSecret,
+          'force': 'true', // تجاهل التخزين المؤقت
+        },
+      );
+      debugPrint('🌐 Request URL: $uri');
+
+      final response = await _client.get(uri);
+      debugPrint('📥 Response status code: ${response.statusCode}');
+      debugPrint('📦 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        final paymentMethods = data.map((item) => {
+          'id': item['id'] as String? ?? '',
+          'title': item['title'] as String? ?? '',
+          'description': item['description'] as String? ?? '',
+          'enabled': item['enabled'] as bool? ?? false,
+          'method_title': item['method_title'] as String? ?? '',
+          'method_description': item['method_description'] as String? ?? '',
+        }).toList();
+
+        // فلترة طرق الدفع المفعلة فقط
+        final enabledMethods = paymentMethods.where((method) => method['enabled'] == true).toList();
+        debugPrint('💳 Available payment methods: $enabledMethods');
+        return enabledMethods;
+      }
+      
+      debugPrint('❌ Error Response: ${response.statusCode} - ${response.body}');
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error fetching payment gateways: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getShippingMethods() async {
+    try {
+      debugPrint('🔄 Fetching shipping methods...');
+      
+      // أولاً، نحصل على مناطق الشحن
+      final zonesUri = Uri.parse('${_baseUrl}wp-json/wc/v3/shipping/zones').replace(
+        queryParameters: {
+          'consumer_key': _consumerKey,
+          'consumer_secret': _consumerSecret,
+        },
+      );
+      debugPrint('🌐 Fetching shipping zones: $zonesUri');
+      
+      final zonesResponse = await _client.get(zonesUri);
+      debugPrint('📥 Zones response status: ${zonesResponse.statusCode}');
+      debugPrint('📦 Zones response body: ${zonesResponse.body}');
+      
+      if (zonesResponse.statusCode == 200) {
+        final List<dynamic> zones = json.decode(zonesResponse.body);
+        List<Map<String, dynamic>> allShippingMethods = [];
+        
+        // إضافة المنطقة 0 (Rest of the World)
+        zones.add({'id': 0, 'name': 'Rest of the World'});
+        
+        // البحث في جميع المناطق
+        for (var zone in zones) {
+          final zoneId = zone['id'];
+          debugPrint('🔍 Checking zone $zoneId: ${zone['name']}');
+          
+          final methodsUri = Uri.parse('${_baseUrl}wp-json/wc/v3/shipping/zones/$zoneId/methods').replace(
+            queryParameters: {
+              'consumer_key': _consumerKey,
+              'consumer_secret': _consumerSecret,
+            },
+          );
+          
+          final methodsResponse = await _client.get(methodsUri);
+          if (methodsResponse.statusCode == 200) {
+            final List<dynamic> methods = json.decode(methodsResponse.body);
+            final zoneMethods = methods.map((item) => {
+              'id': item['id'].toString(),
+              'title': '${item['title']} (${zone['name']})',
+              'description': item['description'] as String? ?? '',
+              'enabled': item['enabled'] as bool? ?? false,
+              'method_id': item['method_id'] as String? ?? '',
+              'cost': (item['settings']?['cost']?['value'] as String? ?? '0').replaceAll(RegExp(r'[^\d.]'), ''),
+              'zone_id': zoneId,
+              'zone_name': zone['name'],
+            }).where((method) => method['enabled'] == true).toList();
+            
+            allShippingMethods.addAll(zoneMethods);
+          }
+        }
+        
+        debugPrint('🚚 All available shipping methods: $allShippingMethods');
+        return allShippingMethods;
+      }
+      
+      debugPrint('❌ Error fetching shipping methods');
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error fetching shipping methods: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> createOrder(Map<String, dynamic> orderData) async {
+    try {
+      final uri = _buildUri('/orders', {});
+      debugPrint('🌐 Creating order with data: $orderData');
+      
+      final response = await _client.post(
+        uri,
+        body: json.encode(orderData),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        debugPrint('✅ Order created successfully: ${response.body}');
+        return responseData;
+      }
+      
+      debugPrint('❌ Error creating order: ${response.body}');
+      throw Exception('Failed to create order: ${response.body}');
+    } catch (e) {
+      debugPrint('❌ Error creating order: $e');
+      rethrow;
+    }
+  }
+
+  Future<String> getPaymentUrl(Map<String, dynamic> orderResponse) async {
+    final orderId = orderResponse['id'];
+    final paymentMethod = orderResponse['payment_method'];
+    
+    // بناء رابط الدفع
+    final baseUrl = _baseUrl.endsWith('/') ? _baseUrl.substring(0, _baseUrl.length - 1) : _baseUrl;
+    final checkoutUrl = '$baseUrl/checkout/order-pay/$orderId?pay_for_order=true&key=${orderResponse['order_key']}';
+    
+    debugPrint('🔗 Payment URL: $checkoutUrl');
+    return checkoutUrl;
+  }
+
+  Future<Map<String, dynamic>> getShippingZones() async {
+    try {
+      final uri = _buildUri('/shipping/zones', {});
+      final response = await _client.get(uri);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      throw Exception('Failed to load shipping zones');
+    } catch (e) {
+      debugPrint('❌ Error fetching shipping zones: $e');
+      rethrow;
+    }
   }
 
   void dispose() {

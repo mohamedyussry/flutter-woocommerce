@@ -112,7 +112,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           leading: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(
-                              item.product.imageUrl,
+                              item.product.images.isNotEmpty 
+                                  ? item.product.images.first.src 
+                                  : 'https://via.placeholder.com/48',
                               width: 48,
                               height: 48,
                               fit: BoxFit.cover,
@@ -127,7 +129,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             style: GoogleFonts.cairo(),
                           ),
                           trailing: Text(
-                            '${item.quantity * item.product.price} درهم',
+                            '${(item.quantity * double.parse(item.product.price.replaceAll(RegExp(r'[^\d.]'), ''))).toStringAsFixed(2)} درهم',
                             style: GoogleFonts.cairo(
                               fontWeight: FontWeight.bold,
                             ),

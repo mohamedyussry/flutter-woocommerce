@@ -357,10 +357,21 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
+    final items = _cartService.items.value;
+    final cartItems = items.map((item) => {
+      'id': item.product.id,
+      'quantity': item.quantity,
+      'name': item.product.name,
+      'price': _getPrice(item),
+    }).toList();
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CheckoutScreen(total: total),
+        builder: (context) => CheckoutScreen(
+          total: total,
+          cartItems: cartItems,
+        ),
       ),
     );
   }
