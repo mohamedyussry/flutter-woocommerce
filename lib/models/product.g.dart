@@ -21,6 +21,8 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
       onSale: json['on_sale'] as bool? ?? false,
       featured: json['featured'] as bool? ?? false,
       stockStatus: json['stock_status'] as String? ?? 'instock',
+      type: json['type'] as String? ?? 'simple',
+      status: json['status'] as String? ?? 'publish',
       images:
           json['images'] == null ? [] : Product._imagesFromJson(json['images']),
       categories: json['categories'] == null
@@ -48,6 +50,8 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
       'on_sale': instance.onSale,
       'featured': instance.featured,
       'stock_status': instance.stockStatus,
+      'type': instance.type,
+      'status': instance.status,
       'images': instance.images,
       'categories': instance.categories,
       'attributes': instance.attributes,
@@ -60,8 +64,8 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
 ProductImage _$ProductImageFromJson(Map<String, dynamic> json) => ProductImage(
       id: (json['id'] as num).toInt(),
       src: ProductImage._srcFromJson(json['src']),
-      name: json['name'] as String,
-      alt: json['alt'] as String,
+      name: json['name'] as String? ?? '',
+      alt: json['alt'] as String? ?? '',
     );
 
 Map<String, dynamic> _$ProductImageToJson(ProductImage instance) =>

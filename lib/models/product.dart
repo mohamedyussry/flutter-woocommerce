@@ -32,6 +32,12 @@ class Product {
   @JsonKey(name: 'stock_status', defaultValue: 'instock')
   final String stockStatus;
   
+  @JsonKey(name: 'type', defaultValue: 'simple')
+  final String type;
+  
+  @JsonKey(name: 'status', defaultValue: 'publish')
+  final String status;
+  
   @JsonKey(name: 'images', fromJson: _imagesFromJson, defaultValue: [])
   final List<ProductImage> images;
   
@@ -64,6 +70,8 @@ class Product {
     required this.onSale,
     required this.featured,
     required this.stockStatus,
+    required this.type,
+    required this.status,
     required this.images,
     required this.categories,
     required this.attributes,

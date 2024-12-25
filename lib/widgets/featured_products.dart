@@ -1,98 +1,147 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/products_provider.dart';
-import '../models/product.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../screens/product_details_screen.dart';
-import 'product_card.dart';
+import '../services/woocommerce_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class FeaturedProducts extends StatelessWidget {
-  const FeaturedProducts({super.key});
+class FeaturedProducts extends StatefulWidget {
+  const FeaturedProducts({Key? key}) : super(key: key);
+
+  @override
+  State<FeaturedProducts> createState() => _FeaturedProductsState();
+}
+
+class _FeaturedProductsState extends State<FeaturedProducts> {
+  late Future<List<dynamic>> _featuredProductsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeaturedProducts();
+  }
+
+  void _loadFeaturedProducts() {
+    final woocommerce = WooCommerceService();
+    _featuredProductsFuture = woocommerce.getFeaturedProducts();
+  }
+
+  void _navigateToFeaturedProducts() {
+    // سيتم تنفيذ التنقل إلى صفحة المنتجات المميزة لاحقاً
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'منتجات مميزة',
-                style: TextStyle(
+                style: GoogleFonts.cairo(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  // TODO: Navigate to featured products screen
-                },
-                child: const Text('عرض الكل'),
+                onPressed: _navigateToFeaturedProducts,
+                child: Text(
+                  'عرض الكل',
+                  style: GoogleFonts.cairo(
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
               ),
             ],
           ),
         ),
         SizedBox(
-          height: 320,
-          child: Consumer<ProductsProvider>(
-            builder: (context, provider, child) {
-              if (provider.isLoading && provider.products.isEmpty) {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+          height: 280,
+          child: FutureBuilder<List<dynamic>>(
+            future: _featuredProductsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
               }
 
-              if (provider.error != null && provider.products.isEmpty) {
+              if (snapshot.hasError) {
                 return Center(
                   child: Text(
-                    provider.error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
+                    'حدث خطأ: ${snapshot.error}',
+                    style: GoogleFonts.cairo(),
                   ),
                 );
               }
 
-              final featuredProducts = provider.products
-                  .where((product) => product.featured)
-                  .toList();
-
-              if (featuredProducts.isEmpty) {
-                return const Center(
-                  child: Text(
-                    'لا توجد منتجات مميزة',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
-                );
-              }
+              final products = snapshot.data!;
 
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
-                itemCount: featuredProducts.length,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: products.length,
                 itemBuilder: (context, index) {
-                  final product = featuredProducts[index];
-                  return SizedBox(
-                    width: 200,
-                    child: ProductCard(
-                      product: product,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProductDetailsScreen(
-                              product: product,
-                            ),
+                  final product = products[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductDetailsScreen(
+                            productId: product['id'],
                           ),
-                        );
-                      },
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 180,
+                      margin: const EdgeInsets.only(right: 16),
+                      child: Card(
+                        elevation: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (product['images'] != null &&
+                                (product['images'] as List).isNotEmpty)
+                              CachedNetworkImage(
+                                imageUrl: product['images'][0]['src'],
+                                height: 180,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Icons.error),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product['name'] ?? '',
+                                    style: GoogleFonts.cairo(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${product['price']} درهم',
+                                    style: GoogleFonts.cairo(
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 },

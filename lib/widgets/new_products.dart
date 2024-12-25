@@ -1,97 +1,147 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/products_provider.dart';
-import '../models/product.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../screens/product_details_screen.dart';
-import 'product_card.dart';
+import '../services/woocommerce_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class NewProducts extends StatelessWidget {
-  const NewProducts({super.key});
+class NewProducts extends StatefulWidget {
+  const NewProducts({Key? key}) : super(key: key);
+
+  @override
+  State<NewProducts> createState() => _NewProductsState();
+}
+
+class _NewProductsState extends State<NewProducts> {
+  late Future<List<dynamic>> _newProductsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNewProducts();
+  }
+
+  void _loadNewProducts() {
+    final woocommerce = WooCommerceService();
+    _newProductsFuture = woocommerce.getNewProducts();
+  }
+
+  void _navigateToNewProducts() {
+    // سيتم تنفيذ التنقل إلى صفحة المنتجات الجديدة لاحقاً
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'وصل حديثاً',
-                style: TextStyle(
+              Text(
+                'منتجات جديدة',
+                style: GoogleFonts.cairo(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  // TODO: Navigate to new products screen
-                },
-                child: const Text('عرض الكل'),
+                onPressed: _navigateToNewProducts,
+                child: Text(
+                  'عرض الكل',
+                  style: GoogleFonts.cairo(
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
               ),
             ],
           ),
         ),
         SizedBox(
-          height: 320,
-          child: Consumer<ProductsProvider>(
-            builder: (context, provider, child) {
-              if (provider.isLoading && provider.products.isEmpty) {
+          height: 280,
+          child: FutureBuilder<List<dynamic>>(
+            future: _newProductsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              if (provider.error != null && provider.products.isEmpty) {
+              if (snapshot.hasError) {
                 return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(provider.error!),
-                      ElevatedButton(
-                        onPressed: () => provider.fetchProducts(),
-                        child: const Text('إعادة المحاولة'),
-                      ),
-                    ],
+                  child: Text(
+                    'حدث خطأ: ${snapshot.error}',
+                    style: GoogleFonts.cairo(),
                   ),
                 );
               }
 
-              final newProducts = provider.products
-                  .toList()
-                  ..sort((a, b) {
-                    final aDate = DateTime.tryParse(a.dateCreated) ?? DateTime(1970);
-                    final bDate = DateTime.tryParse(b.dateCreated) ?? DateTime(1970);
-                    return bDate.compareTo(aDate);
-                  });
-              final displayProducts = newProducts.take(10).toList();
-
-              if (displayProducts.isEmpty) {
-                return const Center(
-                  child: Text('لا توجد منتجات جديدة'),
-                );
-              }
+              final products = snapshot.data!;
 
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
-                itemCount: displayProducts.length,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: products.length,
                 itemBuilder: (context, index) {
-                  final product = displayProducts[index];
-                  return SizedBox(
-                    width: 200,
-                    child: ProductCard(
-                      product: product,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProductDetailsScreen(
-                              product: product,
-                            ),
+                  final product = products[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductDetailsScreen(
+                            productId: product['id'],
                           ),
-                        );
-                      },
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 180,
+                      margin: const EdgeInsets.only(right: 16),
+                      child: Card(
+                        elevation: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (product['images'] != null &&
+                                (product['images'] as List).isNotEmpty)
+                              CachedNetworkImage(
+                                imageUrl: product['images'][0]['src'],
+                                height: 180,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Icons.error),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product['name'] ?? '',
+                                    style: GoogleFonts.cairo(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${product['price']} درهم',
+                                    style: GoogleFonts.cairo(
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 },
