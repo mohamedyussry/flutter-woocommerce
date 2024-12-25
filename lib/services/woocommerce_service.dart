@@ -237,16 +237,60 @@ class WooCommerceService {
     }
   }
 
-  Future<String> getPaymentUrl(Map<String, dynamic> orderResponse) async {
-    final orderId = orderResponse['id'];
-    final paymentMethod = orderResponse['payment_method'];
-    
-    // بناء رابط الدفع
-    final baseUrl = _baseUrl.endsWith('/') ? _baseUrl.substring(0, _baseUrl.length - 1) : _baseUrl;
-    final checkoutUrl = '$baseUrl/checkout/order-pay/$orderId?pay_for_order=true&key=${orderResponse['order_key']}';
-    
-    debugPrint('🔗 Payment URL: $checkoutUrl');
-    return checkoutUrl;
+  Future<String?> getCheckoutUrl({
+    required List<Map<String, dynamic>> cartItems,
+    required Map<String, dynamic> customerData,
+  }) async {
+    try {
+      // إنشاء الطلب مع بيانات العميل
+      final orderUri = Uri.parse('$_baseUrl/wp-json/wc/v3/orders');
+      final orderResponse = await _client.post(
+        orderUri,
+        body: json.encode({
+          'status': 'pending',
+          'billing': customerData['billing'],
+          'shipping': customerData['shipping'],
+          'line_items': cartItems.map((item) => {
+            'product_id': item['id'],
+            'quantity': item['quantity'],
+          }).toList(),
+          'customer_note': customerData['customer_note'] ?? '',
+          'customer_id': customerData['customer_id'] ?? 0,
+        }),
+        headers: {
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_consumerKey:$_consumerSecret'))}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (orderResponse.statusCode == 201) {
+        final orderData = json.decode(orderResponse.body);
+        final orderId = orderData['id'];
+        final orderKey = orderData['order_key'];
+        
+        // إنشاء رابط صفحة الدفع
+        final checkoutUrl = '$_baseUrl/checkout/order-pay/$orderId/?key=$orderKey&pay_for_order=true';
+        debugPrint('Checkout URL: $checkoutUrl');
+        return checkoutUrl;
+      } else {
+        debugPrint('Failed to create order: ${orderResponse.statusCode} - ${orderResponse.body}');
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error creating checkout URL: $e');
+      return null;
+    }
+  }
+
+  Future<String?> getPaymentUrl(Map<String, dynamic> orderData) async {
+    try {
+      final orderId = orderData['id'];
+      final orderKey = orderData['order_key'];
+      return '$_baseUrl/checkout/order-pay/$orderId?pay_for_order=true&key=$orderKey';
+    } catch (e) {
+      debugPrint('Error getting payment URL: $e');
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>> getShippingZones() async {
