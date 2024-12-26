@@ -53,63 +53,61 @@ class CartService {
     await prefs.setString('cart_$userId', cartJson);
   }
 
-  void addItem(Product product, [int quantity = 1]) {
-    final existingIndex = _items.value.indexWhere(
-      (item) => item.product.id.toString() == product.id.toString(),
-    );
-
-    if (existingIndex != -1) {
-      final newItems = List<models.CartItem>.from(_items.value);
-      newItems[existingIndex] = models.CartItem(
-        product: product,
-        quantity: newItems[existingIndex].quantity + quantity,
+  Future<void> addItem(Product product, int quantity, {ProductVariation? variation}) async {
+    final items = _items.value;
+    final String itemId = variation != null ? '${product.id}-${variation.id}' : product.id.toString();
+    
+    final existingItemIndex = items.indexWhere((item) => item.id == itemId);
+    
+    if (existingItemIndex != -1) {
+      // Update existing item quantity
+      final updatedItems = List<models.CartItem>.from(items);
+      updatedItems[existingItemIndex] = updatedItems[existingItemIndex].copyWith(
+        quantity: updatedItems[existingItemIndex].quantity + quantity
       );
-      _items.value = newItems;
+      _items.value = updatedItems;
     } else {
-      _items.value = [
-        ..._items.value,
-        models.CartItem(product: product, quantity: quantity),
-      ];
+      // Add new item
+      final newItem = models.CartItem(
+        id: itemId,
+        product: product,
+        variation: variation,
+        quantity: quantity,
+      );
+      _items.value = [...items, newItem];
     }
-
+    
     _updateCountAndTotal();
-    saveCart();
+    await saveCart();
   }
 
-  void removeItem(String productId) {
-    _items.value = _items.value
-        .where((item) => item.product.id.toString() != productId)
-        .toList();
+  Future<void> removeItem(String itemId) async {
+    _items.value = _items.value.where((item) => item.id != itemId).toList();
     _updateCountAndTotal();
-    saveCart();
+    await saveCart();
   }
 
-  void updateQuantity(String productId, int quantity) {
-    final existingIndex = _items.value.indexWhere(
-      (item) => item.product.id.toString() == productId,
-    );
+  Future<void> updateQuantity(String itemId, int quantity) async {
+    final existingIndex = _items.value.indexWhere((item) => item.id == itemId);
 
     if (existingIndex != -1) {
       final newItems = List<models.CartItem>.from(_items.value);
       if (quantity > 0) {
-        newItems[existingIndex] = models.CartItem(
-          product: newItems[existingIndex].product,
-          quantity: quantity,
-        );
+        newItems[existingIndex] = newItems[existingIndex].copyWith(quantity: quantity);
         _items.value = newItems;
       } else {
         newItems.removeAt(existingIndex);
         _items.value = newItems;
       }
       _updateCountAndTotal();
-      saveCart();
+      await saveCart();
     }
   }
 
-  void clearCart() {
+  Future<void> clearCart() async {
     _items.value = [];
     _updateCountAndTotal();
-    saveCart();
+    await saveCart();
   }
 
   Future<void> checkout(String shippingAddress) async {
@@ -124,6 +122,6 @@ class CartService {
       shippingAddress: shippingAddress,
     );
 
-    clearCart();
+    await clearCart();
   }
 }

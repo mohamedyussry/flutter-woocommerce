@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/product.dart';
-import '../utils/currency_formatter.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../services/cart_service.dart';
 import '../models/cart_item.dart';
 import '../screens/product_details_screen.dart';
@@ -151,49 +148,40 @@ class _ProductCardState extends State<ProductCard> {
                     widget.product.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.cairo(
+                    style: const TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      if (widget.product.onSale)
-                        Row(
-                          children: [
-                            Text(
-                              CurrencyFormatter.format(widget.product.salePrice),
-                              style: GoogleFonts.cairo(
-                                color: Theme.of(context).primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              CurrencyFormatter.format(widget.product.regularPrice),
-                              style: GoogleFonts.cairo(
-                                decoration: TextDecoration.lineThrough,
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        )
-                      else
+                      Text(
+                        '${hasDiscount ? widget.product.salePrice : widget.product.regularPrice} درهم',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      if (hasDiscount) ...[
+                        const SizedBox(width: 8),
                         Text(
-                          CurrencyFormatter.format(widget.product.price),
-                          style: GoogleFonts.cairo(
-                            color: Theme.of(context).primaryColor,
-                            fontWeight: FontWeight.bold,
+                          '${widget.product.regularPrice} درهم',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            decoration: TextDecoration.lineThrough,
+                            color: Colors.grey,
                           ),
                         ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 8),
                   ValueListenableBuilder<List<CartItem>>(
                     valueListenable: _cartService.items,
                     builder: (context, items, child) {
-                      final isInCart = items.any((item) =>
+                      final isInCart = items.any((item) => 
                         item.product.id.toString() == widget.product.id.toString()
                       );
                       return SizedBox(
